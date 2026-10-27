@@ -68,6 +68,10 @@ project usually only means switching the plugin id and extension name). On top o
 
 ## Quick Start
 
+A complete, runnable example lives in the [`demo`](demo/README.md) directory (java + kotlin sources,
+custom directives, keyword overrides, remapper, per task variables); it doubles as the functional
+test fixture of the plugin.
+
 ### Groovy DSL
 
 ```groovy
@@ -596,14 +600,19 @@ gradlew.bat test           // engine unit tests + TestKit functional tests
 gradlew.bat publishToMavenLocal
 ```
 
+The [`demo`](demo/README.md) directory is a complete, runnable showcase project (java + kotlin,
+custom directive backed by a declared input file, json keyword override, remapper, per task
+variables). It doubles as the fixture for `DemoProjectFunctionalTest`, which copies it and runs real
+Gradle builds against it (full `build` with javac + kotlinc, up-to-date checks, command line
+overrides, configuration cache round trip).
+
 Test coverage: 13 expression evaluator tests (precedence, version comparison, strict mode, ...),
 41 engine tests (branches incl. the `//#else if` two word form, policies, variables, custom
-directives and blocks, idempotency, suffix keyword matching, ...), and 25 TestKit end-to-end tests
-(task registration, compile wiring, resource wiring, up-to-date checks, command line overrides,
-granularity, custom directives from the build script, nested conditions compiled by a real javac,
-idempotent apply, task attachment control, per task variables, include/exclude DSL, declared
-custom logic inputs, build cache round trip with and without custom logic, configuration cache
-round trips, the Kotlin lambda limitation and malformed encoding detection) - 79 tests in total.
+directives and blocks, idempotency, suffix keyword matching, ...), and 18 TestKit end-to-end tests
+(compile wiring, resource wiring, up-to-date checks, granularity, task attachment control, per task
+variables, include/exclude DSL, declared custom logic inputs, build cache round trip with and
+without custom logic, configuration cache round trips, the Kotlin lambda limitation, malformed
+encoding detection and three demo project scenarios) - 72 tests in total.
 
 ## Project Layout
 
@@ -626,4 +635,7 @@ src/main/java/dev/oblivruin/preprocessor/
 ├── tasks/                         AbstractPreprocessTask (shared base) +
 │                                  PreprocessTask (cacheable) / ApplyPreprocessTask (experimental)
 └── internal/                      source set wiring, file utilities
+
+demo/                              runnable showcase project (see demo/README.md);
+                                   fixture for DemoProjectFunctionalTest
 ```

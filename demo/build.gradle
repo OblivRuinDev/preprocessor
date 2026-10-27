@@ -1,0 +1,50 @@
+// Showcase project for the dev.oblivruin.preprocessor plugin.
+//
+// The plugin is applied without a version because this project doubles as the
+// functional test fixture (the test suite injects the plugin classpath). To use
+// this project standalone:
+//   1. gradlew publishToMavenLocal          (from the repository root)
+//   2. add the version below, e.g. id 'dev.oblivruin.preprocessor' version '1.0.0'
+//   3. run: gradlew -p demo build
+
+plugins {
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.9.24'
+    id 'dev.oblivruin.preprocessor'
+}
+
+repositories {
+    mavenCentral()
+}
+
+preprocessor {
+    // global variables, overridable from the command line:
+    //   gradlew -p demo build -Ppreprocessor.var.PLATFORM=forge
+    vars.put('MC', '1.20.1')
+    vars.put('PLATFORM', 'fabric')
+
+    sourceSets {
+        main {
+            // per task variables: preprocessJava / applyPreprocessJava see JAVA_ONLY,
+            // the kotlin tasks see KOTLIN_ONLY
+            javaTask { vars.put('JAVA_ONLY', '1') }
+            kotlinTask { vars.put('KOTLIN_ONLY', '1') }
+        }
+    }
+
+    // mixins.json style keyword override: json files use //@ directives
+    keywords.put('json', new dev.oblivruin.preprocessor.Keywords(
+            '//@if', '//@elseif', '//@else', '//@endif', '//$$'))
+
+    // literal string replacement on every processed line (ToCraft compatible)
+    remapper.put('demo.legacy.OldApi', 'demo.api.NewApi')
+
+    // files the custom directive reads; they join the up-to-date fingerprint and
+    // the build cache key, so changing tags.txt reruns the tasks
+    customLogicInputs.from('logic/tags.txt')
+    // capture only a String path so the closure stays Serializable (configuration cache)
+    def tagsPath = project.file('logic/tags.txt').absolutePath
+    directives.register('tag') { ctx ->
+        ctx.replaceLine('// tag[' + ctx.argument() + '] = ' + new File(tagsPath).text.trim())
+    }
+}
