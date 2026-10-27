@@ -96,9 +96,19 @@ public class SourceSetSettings {
         return enabled;
     }
 
+    /** DSL setter so that {@code enabled = false} works in Groovy container closures. */
+    public void setEnabled(boolean enabled) {
+        this.enabled.set(enabled);
+    }
+
     /** Whether the java sources of this source set are preprocessed. */
     public Property<Boolean> getJava() {
         return java;
+    }
+
+    /** DSL setter so that {@code java = false} works in Groovy container closures. */
+    public void setJava(boolean java) {
+        this.java.set(java);
     }
 
     /** Whether the kotlin sources of this source set are preprocessed. */
@@ -106,9 +116,19 @@ public class SourceSetSettings {
         return kotlin;
     }
 
+    /** DSL setter so that {@code kotlin = false} works in Groovy container closures. */
+    public void setKotlin(boolean kotlin) {
+        this.kotlin.set(kotlin);
+    }
+
     /** Whether the resources of this source set are preprocessed. */
     public Property<Boolean> getResources() {
         return resources;
+    }
+
+    /** DSL setter so that {@code resources = false} works in Groovy container closures. */
+    public void setResources(boolean resources) {
+        this.resources.set(resources);
     }
 
     /**
@@ -120,6 +140,11 @@ public class SourceSetSettings {
      */
     public Property<Boolean> getAttach() {
         return attach;
+    }
+
+    /** DSL setter so that {@code attach = false} works in Groovy container closures. */
+    public void setAttach(boolean attach) {
+        this.attach.set(attach);
     }
 
     /**
@@ -233,14 +258,29 @@ public class SourceSetSettings {
         return inactiveLines;
     }
 
+    /** DSL setter so that {@code inactiveLines = ...} works in Groovy container closures. */
+    public void setInactiveLines(LinePolicy policy) {
+        this.inactiveLines.set(policy);
+    }
+
     /** Overrides the global strict mode for this source set when set. */
     public Property<Boolean> getStrict() {
         return strict;
     }
 
+    /** DSL setter so that {@code strict = true} works in Groovy container closures. */
+    public void setStrict(boolean strict) {
+        this.strict.set(strict);
+    }
+
     /** Overrides the global file encoding for this source set when set. */
     public Property<String> getEncoding() {
         return encoding;
+    }
+
+    /** DSL setter so that {@code encoding = 'ISO-8859-1'} works in Groovy container closures. */
+    public void setEncoding(String encoding) {
+        this.encoding.set(encoding);
     }
 
     /** DSL helper: process only the java sources of this source set. */

@@ -68,9 +68,11 @@ project usually only means switching the plugin id and extension name). On top o
 
 ## Quick Start
 
-A complete, runnable example lives in the [`demo`](demo/README.md) directory (java + kotlin sources,
-custom directives, keyword overrides, remapper, per task variables); it doubles as the functional
-test fixture of the plugin.
+A complete, runnable example lives in the [`demo`](demo/README.md) directory (Groovy DSL) and its
+Kotlin DSL mirror [`demo-kts`](demo-kts/README.md) — java + kotlin sources, custom directives and
+processors backed by declared input files, keyword overrides, remapper, per task variables,
+granularity and attachment control. Both double as the functional test fixtures of the plugin
+(`DemoProjectFunctionalTest` / `DemoKtsProjectFunctionalTest`).
 
 ### Groovy DSL
 
@@ -388,27 +390,32 @@ variables (`-Ppreprocessor.var.NAME=...`) are tracked as configuration inputs, s
 invalidates the entry automatically.
 
 One limitation to know about: task state is **serialized** into the configuration cache, and that
-includes the registered custom logic handlers. The deciding property is plain
-`java.io.Serializable` — not a mutable/immutable classification:
+includes the registered custom logic handlers. The deciding property is where the handler's class
+comes from, not just `Serializable`:
 
-- Groovy closures (`directives.register('x') { ... }` in a Groovy build script) are `Serializable`
-  and work with the configuration cache. The plugin wraps them in a `Serializable` adapter, so
-  closure registered directives are always configuration cache friendly. Capture only serializable
-  values in the closure (a `String` path instead of a `Project`/`File` reference, see the example
-  above).
-- Kotlin DSL SAM lambdas (`directives.register("x") { ... }` in a `.kts` script) are **not**
-  `Serializable`: storing the configuration cache fails with an error naming
-  `dev.oblivruin.preprocessor.api.DirectiveHandler`. Workarounds: use a Groovy build script for the
-  directive registrations, or implement the handler as a `Serializable` class (e.g. in buildSrc):
-  `class MyDirective : DirectiveHandler, Serializable`.
-- The same applies to `processors.register(...)` with `TextProcessor`.
+- Groovy closures (`directives.register('x') { ... }` in a Groovy build script) work with the
+  configuration cache - Gradle serializes closures specially. The plugin wraps them in a
+  `Serializable` adapter, so closure registered directives *and processors* (see
+  `processors.register('x') { ... }`) are always configuration cache friendly. Capture only
+  serializable values in the closure (a `String` path instead of a `Project`/`File` reference, see
+  the example above).
+- Handler **classes declared in the build script** (a Groovy `class ...` in `build.gradle`, a
+  Kotlin `object : DirectiveHandler, Serializable` in a `.kts` script) cannot be stored in the
+  configuration cache **at all**, even when they implement `Serializable`: Gradle refuses to
+  serialize classes that are defined in a build script. The plugin warns during configuration
+  (naming the offending registrations) *before* Gradle fails with its cryptic serialization
+  error.
+- Handler classes from a stable classpath (e.g. buildSrc, or a plain Kotlin DSL lambda -
+  `directives.register("x") { ... }` in a `.kts` script) fail differently: Kotlin DSL lambdas are
+  not `Serializable` at all and fail with an error naming
+  `dev.oblivruin.preprocessor.api.DirectiveHandler`. A `Serializable` handler class in buildSrc
+  (`class MyDirective : DirectiveHandler, Serializable`) works.
 
 When the configuration cache is enabled, the plugin warns during configuration about handlers that
-are not `Serializable` (naming them and the fix) — *before* Gradle fails with its cryptic
-serialization error. Without the configuration cache, serializability has no effect and no warning
-is emitted.
+are not `Serializable` (naming them and the fix). Without the configuration cache,
+serializability has no effect and no warning is emitted.
 
-Note that serializability only decides the **configuration** cache. A `Serializable` handler is not
+Note that all of this only decides the **configuration** cache. A `Serializable` handler is not
 automatically safe for the **build** cache: the handler logic is still not part of the build cache
 key (see Build Cache).
 
@@ -516,8 +523,13 @@ public class StripTodoProcessor implements TextProcessor {
 
 ```groovy
 preprocessor {
+    // Java class from buildSrc:
     processors.register('stripTodo', new StripTodoProcessor())
-    processors.registerBefore('early', 'remapper', new MyEarlyProcessor())  // ordering anchors
+    // or a Groovy closure (configuration cache friendly):
+    processors.registerBefore('stripTodo', 'remapper') { ctx ->
+        ctx.lines().removeIf { it.trim().startsWith('// TODO') }
+    }
+    processors.registerAfter('late', 'stripTodo') { ctx -> /* ... */ }
 }
 ```
 
@@ -608,11 +620,12 @@ overrides, configuration cache round trip).
 
 Test coverage: 13 expression evaluator tests (precedence, version comparison, strict mode, ...),
 41 engine tests (branches incl. the `//#else if` two word form, policies, variables, custom
-directives and blocks, idempotency, suffix keyword matching, ...), and 18 TestKit end-to-end tests
-(compile wiring, resource wiring, up-to-date checks, granularity, task attachment control, per task
-variables, include/exclude DSL, declared custom logic inputs, build cache round trip with and
-without custom logic, configuration cache round trips, the Kotlin lambda limitation, malformed
-encoding detection and three demo project scenarios) - 72 tests in total.
+directives and blocks, idempotency, suffix keyword matching, ...), and 22 TestKit end-to-end tests
+(compile wiring for java *and* kotlin, resource wiring, up-to-date checks, granularity, task
+attachment control, per task variables, include/exclude DSL, declared custom logic inputs, build
+cache round trips with and without custom logic, configuration cache behavior including the Kotlin
+lambda limitation, malformed encoding detection, and 7 complete demo project scenarios) -
+76 tests in total.
 
 ## Project Layout
 
@@ -636,6 +649,8 @@ src/main/java/dev/oblivruin/preprocessor/
 │                                  PreprocessTask (cacheable) / ApplyPreprocessTask (experimental)
 └── internal/                      source set wiring, file utilities
 
-demo/                              runnable showcase project (see demo/README.md);
+demo/                              runnable showcase project, Groovy DSL (see demo/README.md);
                                    fixture for DemoProjectFunctionalTest
+demo-kts/                          Kotlin DSL mirror of the showcase;
+                                   fixture for DemoKtsProjectFunctionalTest
 ```

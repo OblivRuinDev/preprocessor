@@ -1,7 +1,10 @@
 package dev.oblivruin.preprocessor;
 
+import dev.oblivruin.preprocessor.api.ProcessorContext;
 import dev.oblivruin.preprocessor.api.TextProcessor;
+import groovy.lang.Closure;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -37,14 +40,32 @@ public class ProcessorRegistry {
         add(id, processor, Mode.APPEND, null);
     }
 
+    /**
+     * Registers a custom processor implemented by a Groovy closure receiving the
+     * {@link dev.oblivruin.preprocessor.api.ProcessorContext} as its single argument.
+     */
+    public void register(String id, Closure<?> closure) {
+        register(id, new ClosureTextProcessor(closure));
+    }
+
     /** Registers a processor that runs immediately before the processor with the given anchor id. */
     public void registerBefore(String id, String anchorId, TextProcessor processor) {
         add(id, processor, Mode.BEFORE, anchorId);
     }
 
+    /** Groovy closure variant of {@link #registerBefore(String, String, TextProcessor)}. */
+    public void registerBefore(String id, String anchorId, Closure<?> closure) {
+        registerBefore(id, anchorId, new ClosureTextProcessor(closure));
+    }
+
     /** Registers a processor that runs immediately after the processor with the given anchor id. */
     public void registerAfter(String id, String anchorId, TextProcessor processor) {
         add(id, processor, Mode.AFTER, anchorId);
+    }
+
+    /** Groovy closure variant of {@link #registerAfter(String, String, TextProcessor)}. */
+    public void registerAfter(String id, String anchorId, Closure<?> closure) {
+        registerAfter(id, anchorId, new ClosureTextProcessor(closure));
     }
 
     /** Removes a previously registered custom processor (built-ins cannot be removed). */
@@ -161,6 +182,25 @@ public class ProcessorRegistry {
             this.processor = processor;
             this.mode = mode;
             this.anchorId = anchorId;
+        }
+    }
+
+    /**
+     * Serializable adapter: it only wraps a Groovy {@link Closure}, which is Serializable
+     * itself. This keeps closure registered processors configuration cache friendly.
+     */
+    private static final class ClosureTextProcessor implements TextProcessor, Serializable {
+        private static final long serialVersionUID = 1L;
+
+        private final Closure<?> closure;
+
+        ClosureTextProcessor(Closure<?> closure) {
+            this.closure = closure;
+        }
+
+        @Override
+        public void process(ProcessorContext context) {
+            closure.call(context);
         }
     }
 }

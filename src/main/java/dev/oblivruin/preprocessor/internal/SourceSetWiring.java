@@ -406,7 +406,11 @@ public final class SourceSetWiring {
     /**
      * Redirects the sources of a compile task from {@code originals} to {@code processed}.
      * Uses {@link AbstractCompile} when possible and falls back to reflection so the
-     * plugin works without a compile time dependency on the kotlin plugin.
+     * plugin works without a compile time dependency on the kotlin plugin. Two task
+     * shapes are handled: the classic {@code getSource()}/{@code setSource(Object)}
+     * shape (java, SourceTask based) and the Kotlin 1.9+ shape, which is a plain
+     * {@code DefaultTask} with {@code getSources()} and a varargs
+     * {@code setSource(Object...)}.
      */
     private static boolean setCompileSource(Task task, FileCollection originals, FileCollection processed, Logger logger) {
         if (task instanceof AbstractCompile) {
@@ -420,28 +424,61 @@ public final class SourceSetWiring {
             return true;
         }
         try {
-            Method getSource = task.getClass().getMethod("getSource");
-            Method setSource = null;
-            for (Method method : task.getClass().getMethods()) {
-                if (method.getName().equals("setSource") && method.getParameterTypes().length == 1) {
-                    Class<?> parameterType = method.getParameterTypes()[0];
-                    if (parameterType == Object.class || parameterType == FileCollection.class) {
-                        setSource = method;
-                        break;
-                    }
-                }
+            // Kotlin 1.9+ shape: getSources() returns the live collection; replacing its
+            // contents is the cleanest redirect
+            Method getSources = method(task.getClass(), "getSources");
+            if (getSources == null) {
+                getSources = method(task.getClass(), "getSource");
             }
-            if (getSource == null || setSource == null) {
+            if (getSources == null) {
                 return false;
             }
-            Object current = getSource.invoke(task);
-            if (current instanceof FileCollection) {
-                Object merged = ((FileCollection) current).minus(originals).plus(processed);
-                setSource.invoke(task, merged);
-                return true;
+            Object current = getSources.invoke(task);
+            if (!(current instanceof FileCollection)) {
+                return false;
             }
+            if (!(current instanceof org.gradle.api.file.ConfigurableFileCollection)) {
+                return invokeSetSource(task, ((FileCollection) current).minus(originals).plus(processed));
+            }
+            org.gradle.api.file.ConfigurableFileCollection live =
+                    (org.gradle.api.file.ConfigurableFileCollection) current;
+            // snapshot the current contents first: the replacement must not reference the
+            // collection it replaces, or resolving it recurses forever
+            FileCollection snapshot = task.getProject().files(live.getFiles());
+            live.setFrom(snapshot.minus(originals).plus(processed));
+            return true;
         } catch (ReflectiveOperationException e) {
             logger.debug("[preprocessor] reflection based source redirect failed for " + task.getName(), e);
+            return false;
+        }
+    }
+
+    private static Method method(Class<?> type, String name) {
+        try {
+            return type.getMethod(name);
+        } catch (NoSuchMethodException e) {
+            return null;
+        }
+    }
+
+    /** Finds a one argument {@code setSource} method and invokes it with the merged collection. */
+    private static boolean invokeSetSource(Task task, Object merged) throws ReflectiveOperationException {
+        for (Method method : task.getClass().getMethods()) {
+            if (!method.getName().equals("setSource") || method.getParameterTypes().length != 1) {
+                continue;
+            }
+            Class<?> parameterType = method.getParameterTypes()[0];
+            if (parameterType.isArray()) {
+                // the Kotlin varargs shape setSource(Object...): the (Object) cast passes
+                // the wrapped array as one positional argument
+                method.invoke(task, (Object) new Object[] { merged });
+                return true;
+            }
+            // the classic setSource(FileCollection) / setSource(Object)
+            if (parameterType == Object.class || parameterType == FileCollection.class) {
+                method.invoke(task, merged);
+                return true;
+            }
         }
         return false;
     }

@@ -1,0 +1,8 @@
+{
+  //@if RES_ONLY
+  "loader": "fabric",
+  //@else
+  "loader": "universal",
+  //@endif
+  "features": ["conditional", "keywords", "remapper"]
+}

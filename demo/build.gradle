@@ -1,4 +1,4 @@
-// Showcase project for the dev.oblivruin.preprocessor plugin.
+// Showcase project for the dev.oblivruin.preprocessor plugin (Groovy DSL).
 //
 // The plugin is applied without a version because this project doubles as the
 // functional test fixture (the test suite injects the plugin classpath). To use
@@ -6,6 +6,8 @@
 //   1. gradlew publishToMavenLocal          (from the repository root)
 //   2. add the version below, e.g. id 'dev.oblivruin.preprocessor' version '1.0.0'
 //   3. run: gradlew -p demo build
+//
+// The Kotlin DSL mirror of this project lives in ../demo-kts.
 
 plugins {
     id 'java'
@@ -18,33 +20,78 @@ repositories {
 }
 
 preprocessor {
+    // only the source sets declared below are preprocessed
+    autoConfigure = false
+
+    // opt in to build caching although custom logic is registered below; after changing
+    // the logic itself, force reprocessing by bumping a variable:
+    //   gradlew -p demo build -Ppreprocessor.var.logicRev=2
+    cacheWithCustomLogic = true
+
     // global variables, overridable from the command line:
     //   gradlew -p demo build -Ppreprocessor.var.PLATFORM=forge
     vars.put('MC', '1.20.1')
     vars.put('PLATFORM', 'fabric')
+    // dynamic values: Providers are resolved lazily and take part in the fingerprint
+    vars.put('CI', providers.provider { System.getenv('CI') ?: 'off' })
 
     sourceSets {
         main {
+            // only files below demo/ are preprocessed; demo/legacy/** is copied verbatim
+            include 'demo/**'
+            exclude 'demo/legacy/**'
+
+            // per source set variables, visible to main only
+            vars.put('EXPERIMENTAL', '0')
+
             // per task variables: preprocessJava / applyPreprocessJava see JAVA_ONLY,
-            // the kotlin tasks see KOTLIN_ONLY
+            // the kotlin tasks see KOTLIN_ONLY, the resources tasks see RES_ONLY
             javaTask { vars.put('JAVA_ONLY', '1') }
             kotlinTask { vars.put('KOTLIN_ONLY', '1') }
+            resourcesTask { vars.put('RES_ONLY', '1') }
+        }
+        test {
+            // granularity: only the java sources of the test source set
+            onlyJava()
+            // per source set overrides: strict mode and the BLANK output policy
+            strict = true
+            inactiveLines = dev.oblivruin.preprocessor.LinePolicy.BLANK
+            // attach the processed test sources only to compileTestJava; other consumers
+            // (processTestResources) keep reading the original files
+            attachTo 'compileTestJava'
+            vars.put('TEST_FLAG', '1')
         }
     }
 
-    // mixins.json style keyword override: json files use //@ directives
+    // mixin config style keyword override: json files use //@ directives
     keywords.put('json', new dev.oblivruin.preprocessor.Keywords(
             '//@if', '//@elseif', '//@else', '//@endif', '//$$'))
 
     // literal string replacement on every processed line (ToCraft compatible)
     remapper.put('demo.legacy.OldApi', 'demo.api.NewApi')
 
-    // files the custom directive reads; they join the up-to-date fingerprint and
-    // the build cache key, so changing tags.txt reruns the tasks
+    // files the custom directive reads; they join the up-to-date fingerprint and the
+    // build cache key, so changing tags.txt reruns the tasks
     customLogicInputs.from('logic/tags.txt')
     // capture only a String path so the closure stays Serializable (configuration cache)
     def tagsPath = project.file('logic/tags.txt').absolutePath
     directives.register('tag') { ctx ->
         ctx.replaceLine('// tag[' + ctx.argument() + '] = ' + new File(tagsPath).text.trim())
+    }
+
+    // custom text processors with ordering anchors: strip TODO lines before the built-in
+    // remapper, add the demo header after them (idempotent thanks to the guard)
+    // custom text processors with ordering anchors: strip TODO lines before the built-in
+    // remapper, add the demo header after them (idempotent thanks to the guard).
+    // Closures keep the processors Serializable (configuration cache friendly); a Groovy
+    // class declared in a build script is not supported by the configuration cache
+    processors.registerBefore('stripTodo', 'remapper') { ctx ->
+        ctx.lines().removeIf { it.trim().startsWith('// TODO') }
+    }
+    processors.registerAfter('demoHeader', 'stripTodo') { ctx ->
+        def lines = ctx.lines()
+        if (!lines.isEmpty() && !lines[0].startsWith('// preprocessed')) {
+            lines.add(0, '// preprocessed with the preprocessor demo')
+        }
     }
 }

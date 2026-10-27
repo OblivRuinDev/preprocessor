@@ -1,5 +1,5 @@
 {
-  //@if PLATFORM == "fabric"
+  //@if RES_ONLY
   "loader": "fabric",
   //@else
   "loader": "universal",

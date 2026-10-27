@@ -102,14 +102,29 @@ public class PreprocessorExtension {
         return strict;
     }
 
+    /** DSL setter so that {@code strict = true} works in Groovy DSL. */
+    public void setStrict(boolean strict) {
+        this.strict.set(strict);
+    }
+
     /** What happens to directive and inactive lines in the output (default {@link LinePolicy#COMMENT}). */
     public Property<LinePolicy> getInactiveLines() {
         return inactiveLines;
     }
 
+    /** DSL setter so that {@code inactiveLines = ...} works in Groovy DSL. */
+    public void setInactiveLines(LinePolicy policy) {
+        this.inactiveLines.set(policy);
+    }
+
     /** The file encoding used when reading and writing (default {@code UTF-8}). */
     public Property<String> getEncoding() {
         return encoding;
+    }
+
+    /** DSL setter so that {@code encoding = 'ISO-8859-1'} works in Groovy DSL. */
+    public void setEncoding(String encoding) {
+        this.encoding.set(encoding);
     }
 
     /**
@@ -121,6 +136,11 @@ public class PreprocessorExtension {
         return autoConfigure;
     }
 
+    /** DSL setter so that {@code autoConfigure = false} works in Groovy DSL. */
+    public void setAutoConfigure(boolean autoConfigure) {
+        this.autoConfigure.set(autoConfigure);
+    }
+
     /**
      * When {@code true} (default) problems that only affect single files (missing
      * source directories, binary files) are reported as warnings instead of failing
@@ -128,6 +148,11 @@ public class PreprocessorExtension {
      */
     public Property<Boolean> getLenient() {
         return lenient;
+    }
+
+    /** DSL setter so that {@code lenient = false} works in Groovy DSL. */
+    public void setLenient(boolean lenient) {
+        this.lenient.set(lenient);
     }
 
     /**
@@ -139,6 +164,11 @@ public class PreprocessorExtension {
      */
     public Property<Boolean> getAttach() {
         return attach;
+    }
+
+    /** DSL setter so that {@code attach = false} works in Groovy DSL. */
+    public void setAttach(boolean attach) {
+        this.attach.set(attach);
     }
 
     /**
@@ -162,6 +192,11 @@ public class PreprocessorExtension {
      */
     public Property<Boolean> getCacheWithCustomLogic() {
         return cacheWithCustomLogic;
+    }
+
+    /** DSL setter so that {@code cacheWithCustomLogic = true} works in Groovy DSL. */
+    public void setCacheWithCustomLogic(boolean cacheWithCustomLogic) {
+        this.cacheWithCustomLogic.set(cacheWithCustomLogic);
     }
 
     /**
