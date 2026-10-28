@@ -1,0 +1,33 @@
+name: 'Check with a Gradle version'
+description: 'Runs the demo functional tests of the plugin under a specific Gradle distribution'
+
+inputs:
+  gradle-version:
+    description: 'The Gradle version the demo projects are validated with (TestKit downloads it)'
+    required: true
+  java-version:
+    description: 'The JDK used to run the build; the plugin publishing plugin requires 17 or newer'
+    required: false
+    default: '17'
+
+runs:
+  using: composite
+  steps:
+    # no checkout here: the calling job must check out the repository first, because
+    # GitHub resolves this action.yml before running any of the steps below
+    - name: Set up JDK ${{ inputs.java-version }}
+      uses: actions/setup-java@v6.1.0
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java-version }}
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v6.4.0
+
+    - name: Validate the demo projects with Gradle ${{ inputs.gradle-version }}
+      shell: bash
+      run: >
+        ./gradlew test
+        "-Pdemo.gradle.version=${{ inputs.gradle-version }}"
+        --tests "dev.oblivruin.preprocessor.DemoProjectFunctionalTest"
+        --tests "dev.oblivruin.preprocessor.DemoKtsProjectFunctionalTest"

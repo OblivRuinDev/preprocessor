@@ -426,8 +426,14 @@ class PreprocessFunctionalTest {
                 "    //#endif",
                 "}"));
 
+        // the first run may already be served from the build cache: the TestKit cache
+        // directory persists across suite runs and the entry of an earlier run of this
+        // very test is still valid. The point of the test is that the task CAN be
+        // restored from the cache, which the second run proves
         BuildResult first = run("preprocessJava", "--build-cache");
-        assertEquals(TaskOutcome.SUCCESS, first.task(":preprocessJava").getOutcome());
+        TaskOutcome firstOutcome = first.task(":preprocessJava").getOutcome();
+        assertTrue(firstOutcome == TaskOutcome.SUCCESS || firstOutcome == TaskOutcome.FROM_CACHE,
+                "the first run must execute or hit the cache, but was " + firstOutcome);
 
         // the outputs are gone after clean, so the second run can only come from the build cache
         BuildResult second = run("clean", "preprocessJava", "--build-cache");

@@ -1,0 +1,124 @@
+# Release pipeline, triggered by pushing a version tag (v*.*.*):
+#
+#   1. build    - full build and test suite on the wrapper Gradle version
+#   2. check    - the demo projects validated with the oldest and the newest supported
+#                 Gradle version (via .github/actions/check)
+#   3. publish  - publish the signed publications to the OSSRH compatibility staging API
+#                 and transfer them to the Central Portal (tag pushes only)
+#
+# Required GitHub repository secrets:
+#   SONATYPE_USER / SONATYPE_PWD
+#       the user token of the verified dev.oblivruin namespace on central.sonatype.com
+#       (Account -> Generate User Token)
+#   SIGNING_KEY     the ASCII armored private key used for signing
+#                   (gpg --armor --export-secret-keys ...)
+#   SIGNING_PWD     the passphrase of that key
+# The signing key id (263D4349, the last 8 hex digits of the key fingerprint) is not
+# secret and is set directly in the publish job environment below.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  # manual runs for pipeline maintenance; the publish job is skipped without a tag
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test (wrapper Gradle)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.4.0
+
+      - name: Build and run the full test suite
+        run: ./gradlew build --stacktrace
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: test-reports
+          path: build/reports/tests/test/
+          if-no-files-found: ignore
+
+  check:
+    name: Validate demos with Gradle ${{ matrix.gradle-version }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        # oldest supported Gradle for the demo DSL (kts Property assignment needs 8.2+)
+        # and the current stable release; both verified before every release
+        gradle-version: [ '8.2', '9.8.2' ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # the checkout happens here, NOT inside the composite action: a local action
+      # (./.github/actions/check) is resolved before any of its steps run, so the
+      # workspace must already contain it
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Validate with Gradle ${{ matrix.gradle-version }}
+        uses: ./.github/actions/check
+        with:
+          gradle-version: ${{ matrix.gradle-version }}
+
+  publish:
+    name: Publish to Maven Central
+    needs: [ build, check ]
+    # publishing happens exclusively on version tags, never for manual runs or branches
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ORG_GRADLE_PROJECT_signingKeyId: 263D4349
+      ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+      ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PWD }}
+      ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USER }}
+      ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PWD }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6.4.0
+
+      # Gradle maps the ORG_GRADLE_PROJECT_ environment variables to the signingKey /
+      # signingPassword / signingKeyId / sonatypeUsername / sonatypePassword project
+      # properties consumed by the signing and publishing configuration
+      - name: Publish the signed publications to the OSSRH staging API
+        run: >
+          ./gradlew publish
+          -PprojectVersion="${GITHUB_REF_NAME#v}"
+
+      # the staging API keeps the deployment in a staging repository; this request
+      # transfers it to the Central Portal, where the (AUTOMATIC) evaluation and
+      # publishing completes - the final status is visible on central.sonatype.com
+      - name: Transfer the staged deployment to the Central Portal
+        env:
+          SONATYPE_USER: ${{ secrets.SONATYPE_USER }}
+          SONATYPE_PWD: ${{ secrets.SONATYPE_PWD }}
+        run: |
+          SONATYPE_TOKEN=$(printf '%s:%s' "$SONATYPE_USER" "$SONATYPE_PWD" | base64 -w0)
+          curl --fail-with-body --show-error --request POST \
+            --header "Authorization: Bearer $SONATYPE_TOKEN" \
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/dev.oblivruin"

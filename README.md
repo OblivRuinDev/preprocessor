@@ -28,6 +28,7 @@ processing scopes**.
 - [Other Global Options](#other-global-options)
 - [Compatibility Notes](#compatibility-notes)
 - [Building & Testing](#building--testing)
+- [Continuous Integration & Release](#continuous-integration--release)
 - [Project Layout](#project-layout)
 
 ## Feature Overview
@@ -627,6 +628,48 @@ cache round trips with and without custom logic, configuration cache behavior in
 lambda and script class limitations, malformed encoding detection, and 8 complete demo project
 scenarios covering the full configuration surface incl. `preprocessAll`/`applyPreprocess`) -
 77 tests in total.
+
+## Continuous Integration & Release
+
+The [release workflow](.github/workflows/release.yml) runs when a tag matching `v*.*.*` is pushed
+(and manually via *workflow_dispatch* for pipeline maintenance):
+
+1. **build** - the full build and test suite on the wrapper Gradle version (Ubuntu, JDK 17).
+2. **check** - the demo projects are validated with the **oldest and the newest supported Gradle
+   version** (matrix: `8.2` and `9.8.2`), using the reusable composite action
+   [`.github/actions/check`](.github/actions/check/action.yml). The action runs the demo functional
+   tests with `-Pdemo.gradle.version=<version>`; the test classes then run every demo build through
+   TestKit's `withGradleVersion`, so the real plugin (kotlin wiring, configuration cache, build
+   cache, all demo features) is exercised on both Gradle lines.
+3. **publish** - only on tag pushes. `publish` sends the signed publications (plugin jar with
+   sources and javadoc, Gradle Module Metadata, plus the plugin marker POM under
+   `dev.oblivruin:preprocessor`) directly to the
+   [OSSRH compatibility staging API](https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/)
+   (the `sonatype` repository in the build script, credentials resolved from the
+   `sonatypeUsername` / `sonatypePassword` properties), and the job then transfers the staged
+   deployment to the Central Portal via
+   `POST /manual/upload/defaultRepository/dev.oblivruin`. The release version is derived from
+   the tag (`v1.2.3` → `1.2.3` via `-PprojectVersion`); the AUTOMATIC evaluation and publishing
+   complete on the [Central Portal](https://central.sonatype.com/), where the deployment status
+   can be checked afterwards.
+
+Publishing from a local machine is not supported: the signing key is only available in CI, so a
+local `publish` fails with a *no configured signatory* error.
+
+Required GitHub repository secrets:
+
+| Secret | Meaning |
+| --- | --- |
+| `SONATYPE_USER` / `SONATYPE_PWD` | the user token of the (verified) `dev.oblivruin` namespace on [central.sonatype.com](https://central.sonatype.com/) - *Account → Generate User Token* |
+| `SIGNING_KEY` | the ASCII armored private signing key, e.g. `gpg --armor --export-secret-keys <fingerprint>` |
+| `SIGNING_PWD` | the passphrase of that key |
+
+The signing key id (`263D4349`, the last 8 hex digits of the key fingerprint) is not secret; it
+is set directly in the publish job environment and only needs adjusting when a different key
+signs the artifacts.
+
+The Gradle Plugin Portal (`publishPlugins`) is intentionally not part of the workflow; release there
+stays a manual step with the portal credentials.
 
 ## Project Layout
 

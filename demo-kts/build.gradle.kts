@@ -20,7 +20,7 @@ import java.io.Serializable
 
 plugins {
     java
-    kotlin("jvm") version "1.9.24"
+    kotlin("jvm") version "2.3.0"
     id("dev.oblivruin.preprocessor")
 }
 
@@ -189,3 +189,8 @@ tasks.named("build") { dependsOn("compileSamplesKotlin", "compileIntegrationJava
 
 // the ISO-8859-1 test sources must be compiled with the matching encoding
 tasks.compileTestJava { options.encoding = "ISO-8859-1" }
+
+// the demo test sources are preprocessor fixtures, not real tests; Gradle 9 fails a test
+// task that discovers no tests, so the task is always skipped (its dependencies, e.g.
+// compileTestJava, still run)
+tasks.test { onlyIf { false } }

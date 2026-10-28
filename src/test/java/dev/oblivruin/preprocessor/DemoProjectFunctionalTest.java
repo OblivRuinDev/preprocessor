@@ -76,19 +76,35 @@ class DemoProjectFunctionalTest {
     }
 
     private BuildResult run(String... arguments) {
-        return GradleRunner.create()
-                .withPluginClasspath()
-                .withProjectDir(demoDir)
-                .withArguments(arguments)
-                .build();
+        return demoRunner(demoDir, arguments).build();
     }
 
     private BuildResult runAndFail(String... arguments) {
-        return GradleRunner.create()
+        return demoRunner(demoDir, arguments).buildAndFail();
+    }
+
+    /**
+     * Builds the runner for the demo builds. When the optional Gradle version matrix is
+     * active ({@code gradlew test -Pdemo.gradle.version=9.8.2 --tests "...Demo..."}), the
+     * demo projects run under the given Gradle distribution via TestKit instead of the
+     * wrapper version. Gradle 9 enables the configuration cache by default, which script
+     * defined handlers cannot be stored in (see the README), so it is disabled for the
+     * regular runs; the dedicated configuration cache tests pass the flag explicitly.
+     */
+    static GradleRunner demoRunner(File projectDir, String... arguments) {
+        java.util.List<String> args = new java.util.ArrayList<String>(java.util.Arrays.asList(arguments));
+        String version = System.getProperty("demo.gradle.version", "");
+        if (!version.isEmpty() && version.startsWith("9.") && !args.contains("--configuration-cache")) {
+            args.add("--no-configuration-cache");
+        }
+        GradleRunner runner = GradleRunner.create()
                 .withPluginClasspath()
-                .withProjectDir(demoDir)
-                .withArguments(arguments)
-                .buildAndFail();
+                .withProjectDir(projectDir)
+                .withArguments(args);
+        if (!version.isEmpty()) {
+            runner = runner.withGradleVersion(version);
+        }
+        return runner;
     }
 
     private static String text(Path path, Charset charset) throws IOException {
@@ -270,7 +286,9 @@ class DemoProjectFunctionalTest {
 
         BuildResult second = run("preprocessJava", "compileJava", "--configuration-cache");
         assertEquals(TaskOutcome.UP_TO_DATE, second.task(":preprocessJava").getOutcome());
-        assertTrue(second.getOutput().contains("Reusing configuration cache"),
+        // the console wording differs across Gradle versions
+        assertTrue(second.getOutput().contains("Reusing configuration cache")
+                        || second.getOutput().contains("Configuration cache entry reused"),
                 "the demo project must reuse the configuration cache entry:\n" + second.getOutput());
     }
 

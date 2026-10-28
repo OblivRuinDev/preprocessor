@@ -1,7 +1,6 @@
 package dev.oblivruin.preprocessor;
 
 import org.gradle.testkit.runner.BuildResult;
-import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,19 +40,11 @@ class DemoKtsProjectFunctionalTest {
     }
 
     private BuildResult run(String... arguments) {
-        return GradleRunner.create()
-                .withPluginClasspath()
-                .withProjectDir(demoDir)
-                .withArguments(arguments)
-                .build();
+        return DemoProjectFunctionalTest.demoRunner(demoDir, arguments).build();
     }
 
     private BuildResult runAndFail(String... arguments) {
-        return GradleRunner.create()
-                .withPluginClasspath()
-                .withProjectDir(demoDir)
-                .withArguments(arguments)
-                .buildAndFail();
+        return DemoProjectFunctionalTest.demoRunner(demoDir, arguments).buildAndFail();
     }
 
     private static String text(Path path, Charset charset) throws IOException {
