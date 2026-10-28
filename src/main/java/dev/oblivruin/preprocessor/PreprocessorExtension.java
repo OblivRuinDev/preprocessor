@@ -180,6 +180,11 @@ public class PreprocessorExtension {
         return attachTo;
     }
 
+    /** DSL setter so that {@code attachTo = ['compileJava']} works in Groovy DSL. */
+    public void setAttachTo(java.util.List<String> taskNames) {
+        this.attachTo.set(taskNames);
+    }
+
     /**
      * Whether the {@code preprocess*} tasks may be stored in and loaded from the build
      * cache even though custom directives or text processors are registered (default

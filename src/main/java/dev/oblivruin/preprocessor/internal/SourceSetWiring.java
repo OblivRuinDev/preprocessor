@@ -34,6 +34,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -98,7 +99,7 @@ public final class SourceSetWiring {
 
         Object kotlinSources = getKotlinSources(sourceSet);
         if (Boolean.TRUE.equals(settings.getKotlin().get()) && kotlinSources instanceof SourceDirectorySet) {
-            Set<File> dirs = ((SourceDirectorySet) kotlinSources).getSrcDirs();
+            Set<File> dirs = kotlinDirsExcludingJavaDirs(sourceSet, (SourceDirectorySet) kotlinSources);
             if (!dirs.isEmpty()) {
                 languages.put("kotlin", new LanguageEntry(registerLanguage(project, sourceSet, "kotlin", dirs, options,
                         settings.getTaskActions("kotlin"), cacheWithCustomLogicAllowed), dirs));
@@ -154,6 +155,20 @@ public final class SourceSetWiring {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    /**
+     * The kotlin {@link SourceDirectorySet} of the kotlin plugin also contains the java
+     * source directories (so the IDE sees both languages in one set). Without
+     * subtracting them, the kotlin preprocess tasks would walk the java sources as
+     * well: every java file would be processed a second time, and with strict mode
+     * enabled the kotlin task would fail on variables that are only defined for the
+     * java tasks (e.g. via {@code javaTask { ... }}).
+     */
+    private static Set<File> kotlinDirsExcludingJavaDirs(SourceSet sourceSet, SourceDirectorySet kotlinSources) {
+        Set<File> dirs = new LinkedHashSet<File>(kotlinSources.getSrcDirs());
+        dirs.removeAll(sourceSet.getJava().getSrcDirs());
+        return dirs;
     }
 
     /**

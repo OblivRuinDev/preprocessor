@@ -19,6 +19,16 @@ repositories {
     mavenCentral()
 }
 
+// three additional source sets, created and compiled like any other:
+//   samples     - kotlin only, detached (see below)
+//   config      - resources only, attached to 'check' via attachTo
+//   integration - declared but disabled for the preprocessor (enabled = false)
+sourceSets {
+    samples
+    config
+    integration
+}
+
 preprocessor {
     // only the source sets declared below are preprocessed
     autoConfigure = false
@@ -27,6 +37,30 @@ preprocessor {
     // the logic itself, force reprocessing by bumping a variable:
     //   gradlew -p demo build -Ppreprocessor.var.logicRev=2
     cacheWithCustomLogic = true
+
+    // ---- global defaults, inherited by every source set unless overridden below ----
+
+    // strict mode: an unknown variable in a condition aborts instead of warning
+    // (the samples source set overrides this back to lenient)
+    strict = true
+
+    // per file problems (binary file, malformed encoding, missing directory) fail the
+    // build instead of being reported as warnings
+    lenient = false
+
+    // the file encoding; UTF-8 is the default, shown here for discoverability. The test
+    // source set overrides it with ISO-8859-1 to demonstrate a real per source set change
+    encoding = 'UTF-8'
+
+    // whether the preprocess output is attached to the consumer tasks at all; false
+    // would leave every preprocess* task unwired (the samples source set does this
+    // per source set with detach())
+    attach = true
+
+    // restrict the consumer wiring globally: only the listed task names are attached.
+    // This is the standard set, so behavior is unchanged; per source set attachTo
+    // values override this list entirely
+    attachTo = ['compileJava', 'compileKotlin', 'processResources', 'compileTestJava']
 
     // global variables, overridable from the command line:
     //   gradlew -p demo build -Ppreprocessor.var.PLATFORM=forge
@@ -45,7 +79,9 @@ preprocessor {
             vars.put('EXPERIMENTAL', '0')
 
             // per task variables: preprocessJava / applyPreprocessJava see JAVA_ONLY,
-            // the kotlin tasks see KOTLIN_ONLY, the resources tasks see RES_ONLY
+            // the kotlin tasks see KOTLIN_ONLY, the resources tasks see RES_ONLY.
+            // Every task knob is settable here (vars, remapper, keywords, includes,
+            // excludes, encoding, strict, inactiveLines, lenient)
             javaTask { vars.put('JAVA_ONLY', '1') }
             kotlinTask { vars.put('KOTLIN_ONLY', '1') }
             resourcesTask { vars.put('RES_ONLY', '1') }
@@ -53,13 +89,46 @@ preprocessor {
         test {
             // granularity: only the java sources of the test source set
             onlyJava()
-            // per source set overrides: strict mode and the BLANK output policy
-            strict = true
+            // per source set overrides: the BLANK output policy (directive and inactive
+            // lines become empty lines) and an ISO-8859-1 encoded source file
             inactiveLines = dev.oblivruin.preprocessor.LinePolicy.BLANK
+            encoding = 'ISO-8859-1'
             // attach the processed test sources only to compileTestJava; other consumers
             // (processTestResources) keep reading the original files
             attachTo 'compileTestJava'
             vars.put('TEST_FLAG', '1')
+        }
+        samples {
+            // granularity: only the kotlin sources
+            onlyKotlin()
+            // per source set override of the global strict mode: the unknown variable
+            // below only produces a warning and a dead branch instead of failing
+            strict = false
+            // register the preprocess tasks but wire them to nothing; the processed
+            // output in build/preprocessed/samples/... is not consumed by any task
+            detach()
+            vars.put('SAMPLES', '1')
+        }
+        config {
+            // granularity: only the resources
+            onlyResources()
+            // per source set keyword override: txt files use //@ directives here,
+            // while json files (global override) use them everywhere else
+            keywords.put('txt', new dev.oblivruin.preprocessor.Keywords(
+                    '//@if', '//@elseif', '//@else', '//@endif', '//$$'))
+            // the clean REMOVE policy: directive and inactive lines are deleted, the
+            // processed resource is a plain properties file
+            inactiveLines = dev.oblivruin.preprocessor.LinePolicy.REMOVE
+            // attaching to a non compile task wires only a task dependency, so the
+            // preprocess output exists whenever 'check' runs
+            attachTo 'check'
+            vars.put('CONFIG_ONLY', '1')
+        }
+        integration {
+            // declared but not preprocessed at all: no preprocessIntegrationJava task
+            // exists and nothing is attached; compileIntegrationJava reads this
+            // original file verbatim
+            enabled = false
         }
     }
 
@@ -80,8 +149,6 @@ preprocessor {
     }
 
     // custom text processors with ordering anchors: strip TODO lines before the built-in
-    // remapper, add the demo header after them (idempotent thanks to the guard)
-    // custom text processors with ordering anchors: strip TODO lines before the built-in
     // remapper, add the demo header after them (idempotent thanks to the guard).
     // Closures keep the processors Serializable (configuration cache friendly); a Groovy
     // class declared in a build script is not supported by the configuration cache
@@ -95,3 +162,11 @@ preprocessor {
         }
     }
 }
+
+// The detached samples and the disabled integration source sets are not part of the
+// default compile graph (nothing consumes them); wire their compilation in so the demo
+// build proves their ORIGINAL sources compile as is.
+tasks.named('build') { dependsOn 'compileSamplesKotlin', 'compileIntegrationJava' }
+
+// the ISO-8859-1 test sources must be compiled with the matching encoding
+tasks.named('compileTestJava') { options.encoding = 'ISO-8859-1' }

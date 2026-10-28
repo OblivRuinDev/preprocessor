@@ -23,26 +23,20 @@ demonstrates the same feature set — this file only notes the Kotlin specific p
 
 ## What it demonstrates
 
-| Feature | Where |
-| --- | --- |
-| `autoConfigure = false` + explicit `sourceSets` | `build.gradle.kts` |
-| Global variables incl. a lazy `Provider` (`CI`) | `build.gradle.kts` |
-| Per source set variables, include/exclude, per task variables (`javaTask`/`kotlinTask`/`resourcesTask`) | `build.gradle.kts`, `Platform.java`, `Greeting.kt`, `features.json` |
-| Granularity (`onlyJava()`), strict mode, BLANK output policy, selective attachment (`attachTo`) | `build.gradle.kts` (test source set), `src/test/java/demo/DemoTest.java` |
-| `//#if` / `//#elseif` / `//#else if` / `//#else` / `//#endif`, version/numeric comparison, `defined`, `//#var` / `//#unset`, `//$$`, `//#error` / `//#warning` in branches | `src/main/java/demo/Platform.java` |
-| Custom directive `//#tag` backed by a declared input file (`customLogicInputs`) | `build.gradle.kts`, `logic/tags.txt` |
-| Custom text processors with ordering anchors (`registerBefore`/`registerAfter`) | `build.gradle.kts` (TODO stripping + demo header) |
-| Keyword override for a file suffix (mixin style `//@if` in json) | `build.gradle.kts`, `src/main/resources/demo/features.json` |
-| Remapper (literal string replacement) | `build.gradle.kts`, `Remapped.java`, `demo/legacy/OldApi.java`, `demo/api/NewApi.java` |
-| Verbatim copy of excluded files (`exclude "demo/legacy/**"`) | `src/main/java/demo/legacy/OldApi.java` |
-| Kotlin wiring without a compile time dependency on the Kotlin plugin | `src/main/kotlin/demo/Greeting.kt` |
+The `build.gradle.kts` exercises the same full configuration surface as the Groovy mirror — see
+[the Groovy demo README](../demo/README.md) for the complete feature table (global
+`strict`/`lenient`/`encoding`/`attach`/`attachTo`, include/exclude, per source set and per task
+variables, all granularity helpers, all three output policies, per source set keyword overrides,
+`enabled = false`, `detach()`, selective attachment, `applyPreprocess`, ...). The source files and
+the three extra source sets (`samples`, `config`, `integration`) are identical to the Groovy demo;
+only the build script syntax differs.
 
 ## Running it with the test suite
 
 `DemoKtsProjectFunctionalTest` copies this project to a temporary directory and runs real Gradle
-builds against it: a full `build` (javac + kotlinc compile the processed output, jar packaging), a
-build cache round trip and a configuration cache test that locks in the script-defined-handler
-limitation described above. Run from the repository root:
+builds against it: a full `build` (javac + kotlinc compile the processed output, jar packaging)
+followed by `applyPreprocessJava`, a build cache round trip and a configuration cache test that
+locks in the script-defined-handler limitation described above. Run from the repository root:
 
 ```bat
 gradlew.bat test
@@ -58,7 +52,8 @@ gradlew.bat publishToMavenLocal     (repository root)
 
 gradlew.bat -p demo-kts build
 gradlew.bat -p demo-kts build -Ppreprocessor.var.PLATFORM=forge
+gradlew.bat -p demo-kts applyPreprocess
 ```
 
-The processed output lands in `demo-kts/build/preprocessed/main/<language>/`; a regular build never
-touches the original sources.
+The processed output lands in `demo-kts/build/preprocessed/<sourceSet>/<language>/`; a regular build
+never touches the original sources.

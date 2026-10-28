@@ -30,7 +30,7 @@ import java.util.Map;
 public final class Preprocessor {
 
     /** Version of the engine; included in task up-to-date fingerprints. */
-    public static final String ENGINE_VERSION = "1.1.0";
+    public static final String ENGINE_VERSION = "1.2.0";
 
     private final Keywords defaultKeywords;
     private final Map<String, Keywords> keywordsBySuffix;

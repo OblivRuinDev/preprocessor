@@ -620,12 +620,13 @@ overrides, configuration cache round trip).
 
 Test coverage: 13 expression evaluator tests (precedence, version comparison, strict mode, ...),
 41 engine tests (branches incl. the `//#else if` two word form, policies, variables, custom
-directives and blocks, idempotency, suffix keyword matching, ...), and 22 TestKit end-to-end tests
+directives and blocks, idempotency, suffix keyword matching, ...), and 23 TestKit end-to-end tests
 (compile wiring for java *and* kotlin, resource wiring, up-to-date checks, granularity, task
 attachment control, per task variables, include/exclude DSL, declared custom logic inputs, build
 cache round trips with and without custom logic, configuration cache behavior including the Kotlin
-lambda limitation, malformed encoding detection, and 7 complete demo project scenarios) -
-76 tests in total.
+lambda and script class limitations, malformed encoding detection, and 8 complete demo project
+scenarios covering the full configuration surface incl. `preprocessAll`/`applyPreprocess`) -
+77 tests in total.
 
 ## Project Layout
 

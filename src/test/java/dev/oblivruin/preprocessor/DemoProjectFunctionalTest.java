@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The project is copied to a temporary directory, so the checked in sources stay clean.
  */
 class DemoProjectFunctionalTest {
+
+    private static final Charset LATIN1 = StandardCharsets.ISO_8859_1;
 
     @TempDir
     File workDir;
@@ -80,8 +83,16 @@ class DemoProjectFunctionalTest {
                 .build();
     }
 
-    private static String text(Path path) throws IOException {
-        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+    private BuildResult runAndFail(String... arguments) {
+        return GradleRunner.create()
+                .withPluginClasspath()
+                .withProjectDir(demoDir)
+                .withArguments(arguments)
+                .buildAndFail();
+    }
+
+    private static String text(Path path, Charset charset) throws IOException {
+        return new String(Files.readAllBytes(path), charset);
     }
 
     @Test
@@ -92,7 +103,7 @@ class DemoProjectFunctionalTest {
         // java: text processors ran (header + TODO stripping), live fabric/modern
         // branches, commented forge branch, custom directive and the per task variable
         Path platform = new File(demoDir, "build/preprocessed/main/java/demo/Platform.java").toPath();
-        String platformText = text(platform);
+        String platformText = text(platform, StandardCharsets.UTF_8);
         assertTrue(platformText.startsWith("// preprocessed with the preprocessor demo"),
                 "the demo header processor must prepend a line:\n" + platformText);
         assertFalse(platformText.contains("// TODO"), "stripTodo processor must remove TODO lines");
@@ -119,34 +130,54 @@ class DemoProjectFunctionalTest {
 
         // remapper rewrote the legacy reference in the processed output
         Path remapped = new File(demoDir, "build/preprocessed/main/java/demo/Remapped.java").toPath();
-        String remappedText = text(remapped);
+        String remappedText = text(remapped, StandardCharsets.UTF_8);
         assertTrue(remappedText.contains("demo.api.NewApi.name()"), "remapper rewrote the legacy reference");
         assertFalse(remappedText.contains("demo.legacy.OldApi"), "the legacy reference must be gone");
 
         // the excluded legacy directory is copied verbatim: its //#tag line was NOT executed
         Path oldApi = new File(demoDir, "build/preprocessed/main/java/demo/legacy/OldApi.java").toPath();
-        assertTrue(text(oldApi).contains("//#tag excluded"),
+        assertTrue(text(oldApi, StandardCharsets.UTF_8).contains("//#tag excluded"),
                 "excluded files must keep their directive lines verbatim");
 
         // kotlin: wired through AbstractCompile without a compile time dependency
         Path greeting = new File(demoDir, "build/preprocessed/main/kotlin/demo/Greeting.kt").toPath();
-        assertTrue(text(greeting).contains("return \"hello from kotlin\""));
-        assertTrue(text(greeting).contains("//$$ return \"hello\""));
+        assertTrue(text(greeting, StandardCharsets.UTF_8).contains("return \"hello from kotlin\""));
+        assertTrue(text(greeting, StandardCharsets.UTF_8).contains("//$$ return \"hello\""));
 
         // resources: json suffix uses the //@ keyword set and the RES_ONLY task variable
         Path features = new File(demoDir, "build/preprocessed/main/resources/demo/features.json").toPath();
-        String featuresText = text(features);
+        String featuresText = text(features, StandardCharsets.UTF_8);
         assertTrue(featuresText.contains("\"loader\": \"fabric\""));
         assertTrue(featuresText.contains("//$$ \"loader\": \"universal\","));
 
-        // test source set: onlyJava + strict + BLANK policy + attachTo compileTestJava
+        // config source set: onlyResources + per source set keyword override (//@ for txt)
+        // + the REMOVE policy (directives deleted, plain properties file remains). It runs
+        // during the build because attachTo 'check' wired a task dependency
+        Path metadata = new File(demoDir, "build/preprocessed/config/resources/demo/metadata.txt").toPath();
+        String metadataText = text(metadata, StandardCharsets.UTF_8);
+        assertTrue(metadataText.contains("mode=config-only"), "CONFIG_ONLY branch is live:\n" + metadataText);
+        assertFalse(metadataText.contains("//@if"), "REMOVE policy deletes the directive lines");
+        assertFalse(metadataText.contains("mode=universal"), "REMOVE policy deletes the inactive lines");
+
+        // test source set: onlyJava + BLANK policy + per source set ISO-8859-1 encoding +
+        // attachTo compileTestJava (the demo build compiles it with the matching -encoding)
         Path demoTest = new File(demoDir, "build/preprocessed/test/java/demo/DemoTest.java").toPath();
-        String testText = text(demoTest);
-        assertTrue(testText.contains("return \"test-fabric\";"));
+        String testText = text(demoTest, LATIN1);
+        assertTrue(testText.contains("return \"test-fabric caf\u00e9\";"),
+                "the ISO-8859-1 encoded non ASCII character must round trip:\n" + testText);
         assertFalse(testText.contains("test-other"), "the BLANK policy removes the inactive body");
         assertFalse(testText.contains("//#else"), "the BLANK policy blanks directive lines");
 
-        // the jar contains the compiled classes and the processed resource
+        // samples source set: detached, so its preprocess output is NOT produced by a
+        // regular build (verified in demoPreprocessAllAndApplyPreprocess); the original
+        // kotlin file still compiles because the build depends on compileSamplesKotlin
+        assertFalse(Files.exists(new File(demoDir, "build/preprocessed/samples").toPath()),
+                "detached source sets produce nothing during a regular build");
+        assertFalse(Files.exists(new File(demoDir, "build/preprocessed/integration").toPath()),
+                "disabled source sets produce nothing at all");
+
+        // the jar contains the compiled main classes and the processed resource, but
+        // neither the detached samples nor the disabled integration classes
         File jar = new File(demoDir, "build/libs/preprocessor-demo.jar");
         assertTrue(jar.isFile(), "the jar must exist:\n" + result.getOutput());
         try (ZipFile zip = new ZipFile(jar)) {
@@ -155,7 +186,58 @@ class DemoProjectFunctionalTest {
             assertTrue(json != null, "processed resource must be packaged");
             assertTrue(new String(readAll(zip.getInputStream(json)), StandardCharsets.UTF_8)
                     .contains("\"loader\": \"fabric\""));
+            assertTrue(zip.getEntry("demo/samples/Sample.class") == null,
+                    "detached source sets must not end up in the jar");
+            assertTrue(zip.getEntry("demo/integration/Integration.class") == null,
+                    "disabled source sets must not end up in the jar");
         }
+
+        // the disabled source set has no preprocess task at all
+        BuildResult missing = runAndFail("preprocessIntegrationJava");
+        assertTrue(missing.getOutput().contains("not found"),
+                "a disabled source set must have no preprocess task:\n" + missing.getOutput());
+    }
+
+    @Test
+    void demoPreprocessAllAndApplyPreprocess() throws IOException {
+        // preprocessAll runs every preprocess task of every enabled source set, including
+        // the detached samples source set (which a regular build does not run)
+        BuildResult all = run("preprocessAll");
+        assertEquals(TaskOutcome.SUCCESS, all.task(":preprocessAll").getOutcome());
+
+        Path sample = new File(demoDir, "build/preprocessed/samples/kotlin/demo/samples/Sample.kt").toPath();
+        String sampleText = text(sample, StandardCharsets.UTF_8);
+        assertTrue(sampleText.contains("fun base(): String = \"sample base\""), "the live branch body:\n" + sampleText);
+        assertTrue(sampleText.contains("//$$ fun experimental(): String = \"experimental\""),
+                "the unknown variable branch stays commented (per source set strict override)");
+        assertTrue(all.getOutput().contains("NEVER_CONFIGURED"),
+                "the strict=false override warns about the unknown variable:\n" + all.getOutput());
+
+        // applyPreprocess rewrites the ORIGINAL files in place
+        BuildResult apply = run("applyPreprocess");
+        assertEquals(TaskOutcome.SUCCESS, apply.task(":applyPreprocess").getOutcome());
+        assertTrue(apply.getOutput().contains("applied preprocessing to"));
+
+        Path originalPlatform = new File(demoDir, "src/main/java/demo/Platform.java").toPath();
+        String originalText = text(originalPlatform, StandardCharsets.UTF_8);
+        assertTrue(originalText.startsWith("// preprocessed with the preprocessor demo"),
+                "the original source was rewritten in place:\n" + originalText);
+        assertTrue(originalText.contains("return \"fabric\";"), "the live branch is active after applying");
+        assertTrue(originalText.indexOf("// preprocessed with the preprocessor demo")
+                == originalText.lastIndexOf("// preprocessed with the preprocessor demo"),
+                "the header processor guard must not duplicate the header on later cycles");
+
+        // a full build on top of the applied sources stays green and keeps the applied
+        // originals stable (reprocessing is idempotent)
+        BuildResult rebuild = run("build");
+        assertEquals(TaskOutcome.SUCCESS, rebuild.task(":build").getOutcome());
+        int headerLines = 0;
+        for (String line : text(originalPlatform, StandardCharsets.UTF_8).split("\n", -1)) {
+            if (line.startsWith("// preprocessed")) {
+                headerLines++;
+            }
+        }
+        assertEquals(1, headerLines, "the idempotency guard must keep the applied source stable");
     }
 
     @Test
@@ -167,7 +249,7 @@ class DemoProjectFunctionalTest {
         BuildResult flipped = run("preprocessJava", "-Ppreprocessor.var.PLATFORM=forge");
         assertEquals(TaskOutcome.SUCCESS, flipped.task(":preprocessJava").getOutcome());
         Path platform = new File(demoDir, "build/preprocessed/main/java/demo/Platform.java").toPath();
-        String platformText = text(platform);
+        String platformText = text(platform, StandardCharsets.UTF_8);
         assertTrue(platformText.contains("return \"forge\";"));
         assertTrue(platformText.contains("//$$ return \"fabric\";"));
 

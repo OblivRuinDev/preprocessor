@@ -1,0 +1,6 @@
+//@if CONFIG_ONLY
+mode=config-only
+//@else
+mode=universal
+//@endif
+description=preprocessor demo resource
