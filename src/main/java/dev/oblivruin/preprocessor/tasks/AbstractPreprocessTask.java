@@ -17,6 +17,7 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.work.DisableCachingByDefault;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,6 +44,9 @@ import java.util.Map;
  * {@code includes}, {@code excludes}) are merged per key; the scalar options are overridden
  * as a whole.</p>
  */
+@DisableCachingByDefault(because = "it is the abstract base and declares no behavior of its own; "
+        + "the concrete PreprocessTask opts into caching with @CacheableTask and the concrete "
+        + "ApplyPreprocessTask rewrites its inputs in place, so it must never be cached")
 public abstract class AbstractPreprocessTask extends DefaultTask {
     private final ConfigurableFileCollection sourceDirs;
     private final MapProperty<String, Object> vars;

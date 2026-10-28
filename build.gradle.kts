@@ -37,8 +37,8 @@ tasks.withType<JavaCompile>().configureEach {
     // bytecode, so it can be loaded by any Gradle 8.x build (Java 8+ runtime) as well
     // as Gradle 9 (Java 17+ runtime). The `--release` flag requires a JDK 9+ compiler;
     // when the build itself runs on a JDK 8 compiler the default target is already 8.
-    // NOTE: building this project itself requires a JDK between 17 and 22 - the plugin
-    // publishing plugin requires a Java 17+ runtime, and Gradle 8.8 cannot run on JDK 23+.
+    // NOTE: building this project itself requires a JDK of 17 or newer - the plugin
+    // publishing plugin requires a Java 17+ runtime, and Gradle 9 requires a Java 17+ runtime.
     if (JavaVersion.current().isJava9Compatible) {
         options.release.set(8)
     }

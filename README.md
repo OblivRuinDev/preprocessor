@@ -579,8 +579,8 @@ Literal replacement on every processed line, applied in insertion order.
 
 - **Bytecode**: the plugin is published as Java 8 bytecode. It can therefore be loaded by Gradle 8.x
   builds on a Java 8+ runtime as well as Gradle 9 builds (Java 17+ runtime). The build is compiled
-  against the Gradle 8.8 API.
-- **Gradle**: developed and fully tested on Gradle 8.8; the code only uses stable APIs
+  against the Gradle 9.8.0 API.
+- **Gradle**: developed and fully tested on Gradle 9.8.0; the code only uses stable APIs
   (`Property` / `MapProperty` / `TaskProvider`, no removed `convention()` calls).
 - **Configuration cache**: supported and tested - see Configuration Cache below.
 - **Kotlin**: zero compile time dependency. If the kotlin plugin added its `kotlin` source directory
@@ -597,13 +597,12 @@ Literal replacement on every processed line, applied in insertion order.
   on Java 8 runtimes).
 - **Multiple source directories**: directories of one source set are processed in order; duplicate
   relative paths resolve with later-directories-win semantics (same as ToCraft) with a warning.
-- **Building this project**: the wrapper is pinned to Gradle 8.8. Because the build script uses the
-  `com.gradle.plugin-publish` plugin (2.2.1, which requires a Java 17+ build runtime), building
-  needs a JDK between 17 and 22 (Gradle 8.8 cannot run on newer JDKs: its embedded Kotlin cannot
-  parse their class files). Select the build JDK with the IDE settings or
-  `-Dorg.gradle.java.home=<jdk>`. The produced plugin jar has no such restriction - it runs on any
-  Gradle 8.x/9.x build with a JVM the respective Gradle version supports. `options.release = 8` is
-  applied automatically when the compiler JDK is 9+.
+- **Building this project**: the wrapper is pinned to Gradle 9.8.0. Because the build script uses
+  the `com.gradle.plugin-publish` plugin (2.2.1, which requires a Java 17+ build runtime), building
+  needs a JDK of 17 or newer (Gradle 9 itself requires a Java 17+ runtime). Select the build JDK
+  with the IDE settings or `-Dorg.gradle.java.home=<jdk>`. The produced plugin jar has no such
+  restriction - it runs on any Gradle 8.x/9.x build with a JVM the respective Gradle version
+  supports. `options.release = 8` is applied automatically when the compiler JDK is 9+.
 
 ## Building & Testing
 
