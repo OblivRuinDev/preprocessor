@@ -229,7 +229,7 @@ public class PreprocessorExtension {
     /** Resolves the effective attach flag for the given source set (per source set value wins). */
     public boolean resolvedAttach(SourceSetSettings settings) {
         Boolean own = settings != null ? settings.getAttach().getOrNull() : null;
-        return own != null ? own : Boolean.TRUE.equals(attach.get());
+        return own != null ? own : attach.get();
     }
 
     /** Resolves the effective attachTo list for the given source set (per source set value wins). */
@@ -284,7 +284,7 @@ public class PreprocessorExtension {
 
     /** Merges the global keyword map with the given source set overrides. */
     public Map<String, Keywords> mergedKeywords(SourceSetSettings settings) {
-        Map<String, Keywords> merged = new LinkedHashMap<String, Keywords>(keywords.get());
+        Map<String, Keywords> merged = new LinkedHashMap<>(keywords.get());
         if (settings != null) {
             merged.putAll(settings.getKeywords().get());
         }

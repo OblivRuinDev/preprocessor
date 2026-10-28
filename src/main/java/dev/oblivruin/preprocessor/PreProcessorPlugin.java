@@ -53,7 +53,7 @@ public class PreProcessorPlugin implements Plugin<Project> {
             }
             SourceSetWiring.warnAboutNonSerializableLogic(
                     p, (PreprocessorExtension) p.getExtensions().getByName(EXTENSION_NAME));
-            Set<String> wired = new HashSet<String>();
+            Set<String> wired = new HashSet<>();
             for (SourceSet sourceSet : sourceSets) {
                 SourceSetWiring.wire(p, (PreprocessorExtension) p.getExtensions().getByName(EXTENSION_NAME),
                         sourceSet, wired);

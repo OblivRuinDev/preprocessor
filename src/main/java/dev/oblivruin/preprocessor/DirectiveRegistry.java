@@ -35,7 +35,7 @@ public class DirectiveRegistry {
     /** Words handled by the engine itself and therefore not available for custom directives. */
     private static final String[] RESERVED = {"if", "elseif", "else", "endif", "var", "assign", "unset", "error", "warning"};
 
-    private final Map<String, DirectiveHandler> handlers = new LinkedHashMap<String, DirectiveHandler>();
+    private final Map<String, DirectiveHandler> handlers = new LinkedHashMap<>();
 
     /**
      * Registers a custom directive.
@@ -83,7 +83,7 @@ public class DirectiveRegistry {
 
     /** @return an unmodifiable snapshot of all registered directives (lowercase names) */
     public Map<String, DirectiveHandler> all() {
-        return Collections.unmodifiableMap(new LinkedHashMap<String, DirectiveHandler>(handlers));
+        return Collections.unmodifiableMap(new LinkedHashMap<>(handlers));
     }
 
     /** @return {@code true} if no custom directive is registered */

@@ -53,7 +53,7 @@ public class SourceSetSettings {
     private final Property<Boolean> strict;
     private final Property<String> encoding;
     private final Map<String, List<Action<? super AbstractPreprocessTask>>> taskActions =
-            new LinkedHashMap<String, List<Action<? super AbstractPreprocessTask>>>();
+            new LinkedHashMap<>();
 
     /**
      * Creates a settings instance; the conventions are applied immediately so the
@@ -208,28 +208,20 @@ public class SourceSetSettings {
     /** @return the per task actions registered for the language (never {@code null}); internal use. */
     public List<Action<? super AbstractPreprocessTask>> getTaskActions(String language) {
         List<Action<? super AbstractPreprocessTask>> actions = taskActions.get(language);
-        return actions != null ? actions : Collections.<Action<? super AbstractPreprocessTask>>emptyList();
+        return actions != null ? actions : Collections.emptyList();
     }
 
     private void addTaskAction(String language, Action<? super AbstractPreprocessTask> action) {
-        List<Action<? super AbstractPreprocessTask>> actions = taskActions.get(language);
-        if (actions == null) {
-            actions = new ArrayList<Action<? super AbstractPreprocessTask>>();
-            taskActions.put(language, actions);
-        }
-        actions.add(action);
+        taskActions.computeIfAbsent(language, k -> new ArrayList<>()).add(action);
     }
 
     private static Action<? super AbstractPreprocessTask> wrap(final Closure<?> closure) {
-        return new Action<AbstractPreprocessTask>() {
-            @Override
-            public void execute(AbstractPreprocessTask options) {
-                // delegate first: the enclosing source set closure also exposes a 'vars'
-                // property, which would otherwise capture the call
-                closure.setResolveStrategy(Closure.DELEGATE_FIRST);
-                closure.setDelegate(options);
-                closure.call(options);
-            }
+        return (Action<AbstractPreprocessTask>) options -> {
+            // delegate first: the enclosing source set closure also exposes a 'vars'
+            // property, which would otherwise capture the call
+            closure.setResolveStrategy(Closure.DELEGATE_FIRST);
+            closure.setDelegate(options);
+            closure.call(options);
         };
     }
 

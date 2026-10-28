@@ -33,7 +33,7 @@ public class ApplyPreprocessTask extends AbstractPreprocessTask {
 
     @TaskAction
     public void execute() throws IOException {
-        List<String> warnings = new ArrayList<String>();
+        List<String> warnings = new ArrayList<>();
         int[] changed = new int[1];
         forEachSourceFile(new SourceFileHandler() {
             @Override

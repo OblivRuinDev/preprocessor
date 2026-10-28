@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -275,11 +274,11 @@ public abstract class AbstractPreprocessTask extends DefaultTask {
     }
 
     private Preprocessor createEngine() {
-        Map<String, Keywords> suffixMap = new LinkedHashMap<String, Keywords>();
+        Map<String, Keywords> suffixMap = new LinkedHashMap<>();
         for (Map.Entry<String, Keywords> entry : keywords.get().entrySet()) {
             suffixMap.put(FileUtils.normalizeSuffix(entry.getKey()), entry.getValue());
         }
-        Map<String, DirectiveHandler> handlers = new LinkedHashMap<String, DirectiveHandler>();
+        Map<String, DirectiveHandler> handlers = new LinkedHashMap<>();
         for (Map.Entry<String, DirectiveHandler> entry : directiveHandlers.get().entrySet()) {
             handlers.put(entry.getKey().toLowerCase(Locale.ROOT), entry.getValue());
         }
@@ -291,7 +290,7 @@ public abstract class AbstractPreprocessTask extends DefaultTask {
                 .directives(handlers)
                 .processors(processors.get())
                 .policy(inactiveLines.get())
-                .strict(Boolean.TRUE.equals(strict.get()))
+                .strict(strict.get())
                 .build();
     }
 

@@ -33,7 +33,7 @@ public class ProcessorRegistry {
 
     private static final String[] RESERVED_IDS = {BUILTIN_REMAPPER};
 
-    private final Map<String, Entry> entries = new LinkedHashMap<String, Entry>();
+    private final Map<String, Entry> entries = new LinkedHashMap<>();
 
     /** Registers a processor that runs after all built-in processors. */
     public void register(String id, TextProcessor processor) {
@@ -98,7 +98,7 @@ public class ProcessorRegistry {
 
     /** @return an unmodifiable snapshot of all registered processors by id */
     public Map<String, TextProcessor> all() {
-        Map<String, TextProcessor> snapshot = new LinkedHashMap<String, TextProcessor>();
+        Map<String, TextProcessor> snapshot = new LinkedHashMap<>();
         for (Map.Entry<String, Entry> entry : entries.entrySet()) {
             snapshot.put(entry.getKey(), entry.getValue().processor);
         }
@@ -114,8 +114,8 @@ public class ProcessorRegistry {
      * @return the chain of custom processors
      */
     public Chain buildChain() {
-        List<TextProcessor> processors = new ArrayList<TextProcessor>();
-        List<String> ids = new ArrayList<String>();
+        List<TextProcessor> processors = new ArrayList<>();
+        List<String> ids = new ArrayList<>();
         for (Entry entry : entries.values()) {
             int index;
             switch (entry.mode) {

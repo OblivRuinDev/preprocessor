@@ -370,9 +370,10 @@ public final class Preprocessor {
     }
 
     private static String spaces(int n) {
-        // deliberately no String.repeat (Java 11+) fast path behind a Util.JAVA guard:
-        // the plugin is compiled with --release 8, where javac rejects references to newer
-        // platform APIs at compile time - a runtime check cannot make them compilable
+        // deliberately no String.repeat (Java 11+) fast path behind a runtime version
+        // guard: the plugin is compiled with --release 8, where javac rejects references
+        // to newer platform APIs at compile time - a runtime check cannot make them
+        // compilable
         StringBuilder sb = new StringBuilder(n);
         for (int i = 0; i < n; i++) {
             sb.append(' ');
@@ -460,9 +461,9 @@ public final class Preprocessor {
         final LinePolicy policy;
         final boolean strict;
         final List<String> warnings;
-        final List<String> out = new ArrayList<String>();
-        final Map<String, String> meta = new LinkedHashMap<String, String>();
-        final Deque<BlockFrame> stack = new ArrayDeque<BlockFrame>();
+        final List<String> out = new ArrayList<>();
+        final Map<String, String> meta = new LinkedHashMap<>();
+        final Deque<BlockFrame> stack = new ArrayDeque<>();
 
         FileState(String fileName, Keywords keywords, Map<String, Object> variables,
                 Map<String, DirectiveHandler> directives, List<TextProcessor> processors,
@@ -511,14 +512,12 @@ public final class Preprocessor {
                     break;
                 default:
                     switch (policy) {
-                        case COMMENT:
-                            out.add(rawLine);
-                            break;
                         case BLANK:
                             out.add("");
                             break;
                         case REMOVE:
                             break;
+                        case COMMENT:
                         default:
                             out.add(rawLine);
                             break;
@@ -822,31 +821,31 @@ public final class Preprocessor {
 
         /** Sets the suffix based keywords map (keys are file name suffixes such as {@code json}). */
         public Builder keywordsBySuffix(Map<String, Keywords> keywordsBySuffix) {
-            this.keywordsBySuffix = keywordsBySuffix == null ? Collections.<String, Keywords>emptyMap() : keywordsBySuffix;
+            this.keywordsBySuffix = keywordsBySuffix == null ? Collections.emptyMap() : keywordsBySuffix;
             return this;
         }
 
         /** Sets the variables visible to all conditions. */
         public Builder variables(Map<String, Object> variables) {
-            this.variables = variables == null ? Collections.<String, Object>emptyMap() : variables;
+            this.variables = variables == null ? Collections.emptyMap() : variables;
             return this;
         }
 
         /** Sets the custom directives (lowercase name to handler). */
         public Builder directives(Map<String, DirectiveHandler> directives) {
-            this.directives = directives == null ? Collections.<String, DirectiveHandler>emptyMap() : directives;
+            this.directives = directives == null ? Collections.emptyMap() : directives;
             return this;
         }
 
         /** Sets the string replacement map applied to every processed line. */
         public Builder remapper(Map<String, String> remapper) {
-            this.remapper = remapper == null ? Collections.<String, String>emptyMap() : remapper;
+            this.remapper = remapper == null ? Collections.emptyMap() : remapper;
             return this;
         }
 
         /** Sets the text processors that run after the directive scan. */
         public Builder processors(List<TextProcessor> processors) {
-            this.processors = processors == null ? Collections.<TextProcessor>emptyList() : processors;
+            this.processors = processors == null ? Collections.emptyList() : processors;
             return this;
         }
 

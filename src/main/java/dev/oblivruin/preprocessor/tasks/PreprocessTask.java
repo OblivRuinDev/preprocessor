@@ -43,8 +43,8 @@ public class PreprocessTask extends AbstractPreprocessTask {
 
     @TaskAction
     public void execute() throws IOException {
-        List<String> warnings = new ArrayList<String>();
-        Set<String> keep = new LinkedHashSet<String>();
+        List<String> warnings = new ArrayList<>();
+        Set<String> keep = new LinkedHashSet<>();
         Path root = getOutputDir().get().getAsFile().toPath();
         Files.createDirectories(root);
 

@@ -127,7 +127,7 @@ public final class ExpressionEvaluator {
     }
 
     private static List<Object> versionTokens(String s) {
-        List<Object> tokens = new ArrayList<Object>();
+        List<Object> tokens = new ArrayList<>();
         int i = 0;
         int n = s.length();
         while (i < n) {
@@ -148,7 +148,7 @@ public final class ExpressionEvaluator {
     }
 
     private static List<Token> tokenize(String s, String fileName, int lineNumber) {
-        List<Token> tokens = new ArrayList<Token>();
+        List<Token> tokens = new ArrayList<>();
         int i = 0;
         int n = s.length();
         while (i < n) {
@@ -304,7 +304,7 @@ public final class ExpressionEvaluator {
             Object left = parseAnd();
             while (matchOp("||")) {
                 Object right = parseAnd();
-                left = Boolean.valueOf(isTruthy(left) || isTruthy(right));
+                left = isTruthy(left) || isTruthy(right);
             }
             return left;
         }
@@ -313,14 +313,14 @@ public final class ExpressionEvaluator {
             Object left = parseNot();
             while (matchOp("&&")) {
                 Object right = parseNot();
-                left = Boolean.valueOf(isTruthy(left) && isTruthy(right));
+                left = isTruthy(left) && isTruthy(right);
             }
             return left;
         }
 
         private Object parseNot() {
             if (matchOp("!")) {
-                return Boolean.valueOf(!isTruthy(parseNot()));
+                return !isTruthy(parseNot());
             }
             return parseComparison();
         }
@@ -368,7 +368,7 @@ public final class ExpressionEvaluator {
                         throw error("'defined' must be followed by a variable name");
                     }
                     next();
-                    return Boolean.valueOf(vars.defined(target.text));
+                    return vars.defined(target.text);
                 }
                 if (name.equalsIgnoreCase("true")) {
                     return Boolean.TRUE;

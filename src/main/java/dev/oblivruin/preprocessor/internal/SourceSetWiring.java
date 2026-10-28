@@ -21,7 +21,6 @@ import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.MapProperty;
-import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.AbstractCompile;
@@ -58,7 +57,7 @@ public final class SourceSetWiring {
             return;
         }
         SourceSetSettings settings = resolveSettings(extension, sourceSet.getName());
-        if (settings == null || !Boolean.TRUE.equals(settings.getEnabled().get())) {
+        if (settings == null || !settings.getEnabled().get()) {
             return;
         }
 
@@ -76,7 +75,7 @@ public final class SourceSetWiring {
                 ? settings.getInactiveLines().get() : extension.getInactiveLines().get();
         options.lenient = extension.getLenient().get();
         options.directiveHandlers = extension.getDirectives().all();
-        options.directiveNames = new ArrayList<String>(options.directiveHandlers.keySet());
+        options.directiveNames = new ArrayList<>(options.directiveHandlers.keySet());
         ProcessorRegistry.Chain chain = buildProcessorChain(extension);
         options.processors = chain.processors;
         options.processorIds = chain.ids;
@@ -84,12 +83,12 @@ public final class SourceSetWiring {
 
         boolean attach = extension.resolvedAttach(settings);
         List<String> attachTo = extension.resolvedAttachTo(settings);
-        boolean cacheWithCustomLogicAllowed = Boolean.TRUE.equals(extension.getCacheWithCustomLogic().get());
+        boolean cacheWithCustomLogicAllowed = extension.getCacheWithCustomLogic().get();
 
         // register the preprocess tasks of every enabled language first
-        Map<String, LanguageEntry> languages = new LinkedHashMap<String, LanguageEntry>();
+        Map<String, LanguageEntry> languages = new LinkedHashMap<>();
 
-        if (Boolean.TRUE.equals(settings.getJava().get())) {
+        if (settings.getJava().get()) {
             Set<File> dirs = sourceSet.getJava().getSrcDirs();
             if (!dirs.isEmpty()) {
                 languages.put("java", new LanguageEntry(registerLanguage(project, sourceSet, "java", dirs, options,
@@ -98,7 +97,7 @@ public final class SourceSetWiring {
         }
 
         Object kotlinSources = getKotlinSources(sourceSet);
-        if (Boolean.TRUE.equals(settings.getKotlin().get()) && kotlinSources instanceof SourceDirectorySet) {
+        if (settings.getKotlin().get() && kotlinSources instanceof SourceDirectorySet) {
             Set<File> dirs = kotlinDirsExcludingJavaDirs(sourceSet, (SourceDirectorySet) kotlinSources);
             if (!dirs.isEmpty()) {
                 languages.put("kotlin", new LanguageEntry(registerLanguage(project, sourceSet, "kotlin", dirs, options,
@@ -106,7 +105,7 @@ public final class SourceSetWiring {
             }
         }
 
-        if (Boolean.TRUE.equals(settings.getResources().get())) {
+        if (settings.getResources().get()) {
             Set<File> dirs = sourceSet.getResources().getSrcDirs();
             if (!dirs.isEmpty()) {
                 languages.put("resources", new LanguageEntry(registerLanguage(project, sourceSet, "resources", dirs, options,
@@ -143,7 +142,7 @@ public final class SourceSetWiring {
         if (settings != null) {
             return settings;
         }
-        if (Boolean.TRUE.equals(extension.getAutoConfigure().get())) {
+        if (extension.getAutoConfigure().get()) {
             return extension.newDefaultSettings(sourceSetName);
         }
         return null;
@@ -166,7 +165,7 @@ public final class SourceSetWiring {
      * java tasks (e.g. via {@code javaTask { ... }}).
      */
     private static Set<File> kotlinDirsExcludingJavaDirs(SourceSet sourceSet, SourceDirectorySet kotlinSources) {
-        Set<File> dirs = new LinkedHashSet<File>(kotlinSources.getSrcDirs());
+        Set<File> dirs = new LinkedHashSet<>(kotlinSources.getSrcDirs());
         dirs.removeAll(sourceSet.getJava().getSrcDirs());
         return dirs;
     }
@@ -242,8 +241,8 @@ public final class SourceSetWiring {
         // user task configuration applies to both task types, after the defaults, so
         // per task values win
         for (Action<? super AbstractPreprocessTask> action : userActions) {
-            preprocess.configure(task -> action.execute(task));
-            apply.configure(task -> action.execute(task));
+            preprocess.configure(action);
+            apply.configure(action);
         }
         // compose the accumulative options last: task level entries are layered over the
         // merged base (Gradle properties replace their convention entirely, so the merge
@@ -260,31 +259,31 @@ public final class SourceSetWiring {
      * a task level {@code set} simply overrides them.
      */
     private static void layerAccumulativeOptions(AbstractPreprocessTask task, WiringOptions options) {
-        Map<String, Object> taskVars = new LinkedHashMap<String, Object>(task.getVars().get());
-        Map<String, Keywords> taskKeywords = new LinkedHashMap<String, Keywords>(task.getKeywords().get());
-        Map<String, String> taskRemapper = new LinkedHashMap<String, String>(task.getRemapper().get());
-        List<String> taskIncludes = new ArrayList<String>(task.getIncludes().get());
-        List<String> taskExcludes = new ArrayList<String>(task.getExcludes().get());
+        Map<String, Object> taskVars = new LinkedHashMap<>(task.getVars().get());
+        Map<String, Keywords> taskKeywords = new LinkedHashMap<>(task.getKeywords().get());
+        Map<String, String> taskRemapper = new LinkedHashMap<>(task.getRemapper().get());
+        List<String> taskIncludes = new ArrayList<>(task.getIncludes().get());
+        List<String> taskExcludes = new ArrayList<>(task.getExcludes().get());
 
         task.getVars().set(options.vars.map(base -> {
-            Map<String, Object> combined = new LinkedHashMap<String, Object>(base);
+            Map<String, Object> combined = new LinkedHashMap<>(base);
             combined.putAll(taskVars);
             return combined;
         }));
 
-        Map<String, Keywords> keywords = new LinkedHashMap<String, Keywords>(options.keywords);
+        Map<String, Keywords> keywords = new LinkedHashMap<>(options.keywords);
         keywords.putAll(taskKeywords);
         task.getKeywords().set(keywords);
 
-        Map<String, String> remapper = new LinkedHashMap<String, String>(options.remapper);
+        Map<String, String> remapper = new LinkedHashMap<>(options.remapper);
         remapper.putAll(taskRemapper);
         task.getRemapper().set(remapper);
 
-        List<String> includes = new ArrayList<String>(options.includes);
+        List<String> includes = new ArrayList<>(options.includes);
         includes.addAll(taskIncludes);
         task.getIncludes().set(includes);
 
-        List<String> excludes = new ArrayList<String>(options.excludes);
+        List<String> excludes = new ArrayList<>(options.excludes);
         excludes.addAll(taskExcludes);
         task.getExcludes().set(excludes);
     }
@@ -542,13 +541,13 @@ public final class SourceSetWiring {
         if (!isConfigurationCacheRequested(project)) {
             return;
         }
-        List<String> directives = new ArrayList<String>();
+        List<String> directives = new ArrayList<>();
         for (Map.Entry<String, DirectiveHandler> entry : extension.getDirectives().all().entrySet()) {
             if (!(entry.getValue() instanceof Serializable)) {
                 directives.add(entry.getKey());
             }
         }
-        List<String> processors = new ArrayList<String>();
+        List<String> processors = new ArrayList<>();
         for (Map.Entry<String, TextProcessor> entry : extension.getProcessors().all().entrySet()) {
             if (!(entry.getValue() instanceof Serializable)) {
                 processors.add(entry.getKey());

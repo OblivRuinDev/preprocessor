@@ -12,10 +12,10 @@ import java.util.Map;
  */
 public final class VariableScope implements Variables {
     private final Map<String, Object> base;
-    private final Map<String, Object> local = new LinkedHashMap<String, Object>();
+    private final Map<String, Object> local = new LinkedHashMap<>();
 
     public VariableScope(Map<String, Object> base) {
-        this.base = base == null ? new LinkedHashMap<String, Object>() : base;
+        this.base = base == null ? new LinkedHashMap<>() : base;
     }
 
     @Override
@@ -54,7 +54,7 @@ public final class VariableScope implements Variables {
 
     @Override
     public Map<String, Object> asMap() {
-        Map<String, Object> result = new LinkedHashMap<String, Object>(base);
+        Map<String, Object> result = new LinkedHashMap<>(base);
         result.putAll(local);
         return result;
     }

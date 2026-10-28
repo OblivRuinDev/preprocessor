@@ -5,8 +5,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -21,7 +21,7 @@ public final class FileUtils {
     /** Number of leading bytes scanned for a zero byte to detect binary files. */
     public static final int BINARY_SCAN_BYTES = 8192;
 
-    private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<String, Pattern>();
+    private static final Map<String, Pattern> PATTERN_CACHE = new ConcurrentHashMap<>();
 
     private FileUtils() {
     }
@@ -148,7 +148,7 @@ public final class FileUtils {
     public static void deleteStale(Path root, Set<String> keep) throws IOException {
         List<Path> paths;
         try (Stream<Path> stream = Files.walk(root)) {
-            paths = stream.sorted((a, b) -> b.compareTo(a)).collect(Collectors.toList());
+            paths = stream.sorted(Comparator.reverseOrder()).collect(Collectors.toList());
         }
         for (Path path : paths) {
             if (path.equals(root)) {
